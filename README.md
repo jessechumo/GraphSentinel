@@ -6,12 +6,31 @@ GraphSentinel is a Go backend service for analyzing source code structure and de
 
 ## Status
 
-Repository skeleton initialized. HTTP API, async analysis, and detectors land in upcoming commits.
+Minimal HTTP server is running: Chi router, graceful shutdown, and `GET /health`. Analysis API and workers follow in later commits.
 
-## Quickstart (skeleton)
+## Quickstart
 
 ```bash
 make run
+```
+
+Optional environment:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HTTP_ADDR` | `:8080` | Listen address (`host:port` or `:port`) |
+| `SHUTDOWN_TIMEOUT_SEC` | `15` | Graceful shutdown timeout in seconds |
+
+Check health:
+
+```bash
+curl -s http://127.0.0.1:8080/health
+```
+
+Example response:
+
+```json
+{"status":"ok","service":"graphsentinel"}
 ```
 
 ## Layout
@@ -23,4 +42,4 @@ make run
 
 ## License
 
-Specify your license here.
+Licensed under the [Apache License, Version 2.0](LICENSE).
