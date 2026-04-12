@@ -6,7 +6,7 @@ GraphSentinel is a Go backend service for analyzing source code structure and de
 
 ## Status
 
-Minimal HTTP server is running: Chi router, graceful shutdown, and `GET /health`. Analysis API and workers follow in later commits.
+Minimal HTTP server is running: Chi router, graceful shutdown, and `GET /health`. Core analysis domain models, validation, and JSON shapes live in `pkg/models`. Submission and worker endpoints are next.
 
 ## Quickstart
 
