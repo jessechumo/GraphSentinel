@@ -11,14 +11,16 @@ import (
 
 	"github.com/graphsentinel/graphsentinel/internal/api"
 	"github.com/graphsentinel/graphsentinel/internal/config"
+	"github.com/graphsentinel/graphsentinel/internal/store"
 )
 
 func main() {
 	cfg := config.Load()
+	jobs := store.NewMemory()
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           api.NewRouter(),
+		Handler:           api.NewRouter(jobs),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

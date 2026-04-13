@@ -6,7 +6,7 @@ GraphSentinel is a Go backend service for analyzing source code structure and de
 
 ## Status
 
-Minimal HTTP server is running: Chi router, graceful shutdown, and `GET /health`. Core analysis domain models, validation, and JSON shapes live in `pkg/models`. Submission and worker endpoints are next.
+HTTP server with `GET /health` and **`POST /analyze`**: submissions are validated, assigned an ID, and stored in an in-memory job queue (`internal/store`). Async workers and `GET /analysis/{id}` arrive in the next commit.
 
 ## Quickstart
 
@@ -31,6 +31,20 @@ Example response:
 
 ```json
 {"status":"ok","service":"graphsentinel"}
+```
+
+Submit code for analysis (returns `202 Accepted` with a queued job id):
+
+```bash
+curl -s -X POST http://127.0.0.1:8080/analyze \
+  -H 'Content-Type: application/json' \
+  -d '{"language":"c","code":"int main(){return 0;}"}'
+```
+
+Example response:
+
+```json
+{"status":"queued","analysis_id":"<hex-id>"}
 ```
 
 ## Layout
