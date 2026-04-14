@@ -9,8 +9,9 @@ import (
 )
 
 // NewRouter returns the HTTP handler tree for the GraphSentinel API.
-func NewRouter(js store.JobStore) http.Handler {
-	h := &handler{store: js}
+// submit is called with a new job id after a successful enqueue; nil skips background scheduling (tests).
+func NewRouter(js store.JobStore, submit func(id string)) http.Handler {
+	h := &handler{store: js, submit: submit}
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -19,6 +20,7 @@ func NewRouter(js store.JobStore) http.Handler {
 
 	r.Get("/health", health)
 	r.Post("/analyze", h.analyze)
+	r.Get("/analysis/{id}", h.getAnalysis)
 
 	return r
 }

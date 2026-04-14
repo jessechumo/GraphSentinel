@@ -5,5 +5,6 @@ import (
 )
 
 type handler struct {
-	store store.JobStore
+	store  store.JobStore
+	submit func(id string)
 }

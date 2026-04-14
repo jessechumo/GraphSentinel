@@ -36,3 +36,51 @@ func TestMemory_Get_missing(t *testing.T) {
 		t.Fatal("expected miss")
 	}
 }
+
+func TestMemory_claimComplete(t *testing.T) {
+	t.Parallel()
+	s := NewMemory()
+	j, err := s.Enqueue(models.AnalyzeRequest{Language: "go", Code: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s.TryClaim(j.ID) {
+		t.Fatal("expected claim")
+	}
+	got, ok := s.Get(j.ID)
+	if !ok || got.Status != models.StatusRunning {
+		t.Fatalf("job = %+v", got)
+	}
+	rep := &models.AnalysisReport{AnalysisID: j.ID, Status: models.StatusCompleted, Language: "go"}
+	if err := s.Complete(j.ID, rep); err != nil {
+		t.Fatal(err)
+	}
+	got, ok = s.Get(j.ID)
+	if !ok || got.Status != models.StatusCompleted || got.Report == nil {
+		t.Fatalf("job = %+v", got)
+	}
+}
+
+func TestMemory_completeWrongState(t *testing.T) {
+	t.Parallel()
+	s := NewMemory()
+	j, err := s.Enqueue(models.AnalyzeRequest{Language: "go", Code: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Complete(j.ID, &models.AnalysisReport{}); err != ErrJobNotRunning {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestMemory_failWrongState(t *testing.T) {
+	t.Parallel()
+	s := NewMemory()
+	j, err := s.Enqueue(models.AnalyzeRequest{Language: "go", Code: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Fail(j.ID, "x"); err != ErrJobNotRunning {
+		t.Fatalf("err = %v", err)
+	}
+}

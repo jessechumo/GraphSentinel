@@ -16,7 +16,7 @@ import (
 func TestAnalyze_acceptsAndQueues(t *testing.T) {
 	t.Parallel()
 	s := store.NewMemory()
-	srv := httptest.NewServer(api.NewRouter(s))
+	srv := httptest.NewServer(api.NewRouter(s, nil))
 	t.Cleanup(srv.Close)
 
 	body := `{"language":"c","code":"int main(){return 0;}"}`
@@ -43,7 +43,7 @@ func TestAnalyze_acceptsAndQueues(t *testing.T) {
 
 func TestAnalyze_validationError(t *testing.T) {
 	t.Parallel()
-	srv := httptest.NewServer(api.NewRouter(store.NewMemory()))
+	srv := httptest.NewServer(api.NewRouter(store.NewMemory(), nil))
 	t.Cleanup(srv.Close)
 
 	body := `{"language":"c","code":""}`
@@ -59,7 +59,7 @@ func TestAnalyze_validationError(t *testing.T) {
 
 func TestAnalyze_bodyTooLarge(t *testing.T) {
 	t.Parallel()
-	srv := httptest.NewServer(api.NewRouter(store.NewMemory()))
+	srv := httptest.NewServer(api.NewRouter(store.NewMemory(), nil))
 	t.Cleanup(srv.Close)
 
 	large := bytes.Repeat([]byte("a"), 600<<10)

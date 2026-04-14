@@ -6,7 +6,7 @@ GraphSentinel is a Go backend service for analyzing source code structure and de
 
 ## Status
 
-HTTP server with `GET /health` and **`POST /analyze`**: submissions are validated, assigned an ID, and stored in an in-memory job queue (`internal/store`). Async workers and `GET /analysis/{id}` arrive in the next commit.
+HTTP server with `GET /health`, **`POST /analyze`**, and **`GET /analysis/{id}`**. Submissions are queued in `internal/store`, processed by a configurable worker pool (`internal/workers`), and completed with a baseline stub report (`internal/reports`) until the detector commits land.
 
 ## Quickstart
 
@@ -20,6 +20,7 @@ Optional environment:
 |----------|---------|-------------|
 | `HTTP_ADDR` | `:8080` | Listen address (`host:port` or `:port`) |
 | `SHUTDOWN_TIMEOUT_SEC` | `15` | Graceful shutdown timeout in seconds |
+| `WORKER_COUNT` | `2` | Concurrent analysis workers |
 
 Check health:
 
@@ -45,6 +46,12 @@ Example response:
 
 ```json
 {"status":"queued","analysis_id":"<hex-id>"}
+```
+
+Fetch status or the completed report (poll until `status` is `completed` or `failed`):
+
+```bash
+curl -s http://127.0.0.1:8080/analysis/<hex-id>
 ```
 
 ## Layout

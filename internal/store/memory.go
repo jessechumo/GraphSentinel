@@ -3,10 +3,18 @@ package store
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"sync"
 	"time"
 
 	"github.com/graphsentinel/graphsentinel/pkg/models"
+)
+
+var (
+	// ErrJobNotFound is returned when mutating a job id that does not exist.
+	ErrJobNotFound = errors.New("job not found")
+	// ErrJobNotRunning is returned when completing or failing a job that is not running.
+	ErrJobNotRunning = errors.New("job is not running")
 )
 
 // Memory is an in-process JobStore for development and tests.
@@ -49,6 +57,58 @@ func (m *Memory) Get(id string) (*models.AnalysisJob, bool) {
 		return nil, false
 	}
 	return j, true
+}
+
+// TryClaim transitions a queued job to running. It returns false if the job is missing or not queued.
+func (m *Memory) TryClaim(id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	j := m.jobs[id]
+	if j == nil || j.Status != models.StatusQueued {
+		return false
+	}
+	now := time.Now().UTC()
+	j.Status = models.StatusRunning
+	j.StartedAt = &now
+	return true
+}
+
+// Complete marks a running job successful and attaches the report.
+func (m *Memory) Complete(id string, report *models.AnalysisReport) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	j := m.jobs[id]
+	if j == nil {
+		return ErrJobNotFound
+	}
+	if j.Status != models.StatusRunning {
+		return ErrJobNotRunning
+	}
+	now := time.Now().UTC()
+	j.Status = models.StatusCompleted
+	j.FinishedAt = &now
+	j.Report = report
+	j.Error = ""
+	return nil
+}
+
+// Fail marks a running job as failed with a message.
+func (m *Memory) Fail(id string, msg string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	j := m.jobs[id]
+	if j == nil {
+		return ErrJobNotFound
+	}
+	if j.Status != models.StatusRunning {
+		return ErrJobNotRunning
+	}
+	now := time.Now().UTC()
+	j.Status = models.StatusFailed
+	j.FinishedAt = &now
+	j.Error = msg
+	j.Report = nil
+	return nil
 }
 
 func newAnalysisID() string {

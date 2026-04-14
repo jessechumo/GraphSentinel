@@ -48,6 +48,10 @@ func (h *handler) analyze(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.submit != nil {
+		h.submit(job.ID)
+	}
+
 	writeJSON(w, http.StatusAccepted, models.SubmitAnalysisResponse{
 		Status:     job.Status,
 		AnalysisID: job.ID,

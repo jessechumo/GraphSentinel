@@ -11,16 +11,24 @@ import (
 
 	"github.com/graphsentinel/graphsentinel/internal/api"
 	"github.com/graphsentinel/graphsentinel/internal/config"
+	"github.com/graphsentinel/graphsentinel/internal/reports"
 	"github.com/graphsentinel/graphsentinel/internal/store"
+	"github.com/graphsentinel/graphsentinel/internal/workers"
+	"github.com/graphsentinel/graphsentinel/pkg/models"
 )
 
 func main() {
 	cfg := config.Load()
 	jobs := store.NewMemory()
 
+	pool := workers.NewPool(cfg.WorkerCount, 256, jobs, func(ctx context.Context, job *models.AnalysisJob) (*models.AnalysisReport, error) {
+		return reports.BuildStubReport(job), nil
+	})
+	pool.Start()
+
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           api.NewRouter(jobs),
+		Handler:           api.NewRouter(jobs, pool.Submit),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -43,4 +51,7 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Printf("graceful shutdown: %v", err)
 	}
+
+	pool.Close()
+	pool.Wait()
 }
