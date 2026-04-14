@@ -59,11 +59,11 @@ func (p *Pool) runJob(ctx context.Context, id string) {
 	if !p.st.TryClaim(id) {
 		return
 	}
-	job, ok := p.st.Get(id)
+	job, ok := p.st.Snapshot(id)
 	if !ok {
 		return
 	}
-	report, err := p.proc(ctx, job)
+	report, err := p.proc(ctx, &job)
 	if err != nil {
 		_ = p.st.Fail(id, err.Error())
 		return

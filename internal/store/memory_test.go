@@ -37,6 +37,19 @@ func TestMemory_Get_missing(t *testing.T) {
 	}
 }
 
+func TestMemory_Snapshot(t *testing.T) {
+	t.Parallel()
+	s := NewMemory()
+	j, err := s.Enqueue(models.AnalyzeRequest{Language: "go", Code: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, ok := s.Snapshot(j.ID)
+	if !ok || got.ID != j.ID || got.Status != models.StatusQueued {
+		t.Fatalf("snapshot = %+v", got)
+	}
+}
+
 func TestMemory_claimComplete(t *testing.T) {
 	t.Parallel()
 	s := NewMemory()

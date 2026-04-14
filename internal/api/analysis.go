@@ -14,11 +14,11 @@ func (h *handler) getAnalysis(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job, ok := h.store.Get(id)
+	job, ok := h.store.Snapshot(id)
 	if !ok {
 		writeAPIError(w, http.StatusNotFound, "analysis not found")
 		return
 	}
 
-	writeJSON(w, http.StatusOK, models.NewGetAnalysisResponse(job))
+	writeJSON(w, http.StatusOK, models.NewGetAnalysisResponse(&job))
 }

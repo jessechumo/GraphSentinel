@@ -48,13 +48,15 @@ func (h *handler) analyze(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	id := job.ID
 	if h.submit != nil {
-		h.submit(job.ID)
+		h.submit(id)
 	}
 
+	// Response status is always queued here; read job.Status only via Snapshot after enqueue.
 	writeJSON(w, http.StatusAccepted, models.SubmitAnalysisResponse{
-		Status:     job.Status,
-		AnalysisID: job.ID,
+		Status:     models.StatusQueued,
+		AnalysisID: id,
 	})
 }
 

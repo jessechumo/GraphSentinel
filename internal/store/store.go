@@ -7,6 +7,8 @@ import "github.com/graphsentinel/graphsentinel/pkg/models"
 type JobStore interface {
 	Enqueue(req models.AnalyzeRequest) (*models.AnalysisJob, error)
 	Get(id string) (*models.AnalysisJob, bool)
+	// Snapshot returns a point-in-time copy of the job safe to read without holding the store lock.
+	Snapshot(id string) (models.AnalysisJob, bool)
 }
 
 // WorkerStore is the store surface used by background workers (claim + finish).

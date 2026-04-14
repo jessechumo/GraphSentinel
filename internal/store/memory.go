@@ -28,7 +28,8 @@ func NewMemory() *Memory {
 	return &Memory{jobs: make(map[string]*models.AnalysisJob)}
 }
 
-// Enqueue assigns an ID, records the job as queued, and returns a snapshot for the caller.
+// Enqueue assigns an ID, records the job as queued, and returns the stored job pointer.
+// The submission response must not read mutable fields from this pointer after scheduling workers.
 func (m *Memory) Enqueue(req models.AnalyzeRequest) (*models.AnalysisJob, error) {
 	id := newAnalysisID()
 	now := time.Now().UTC()
@@ -57,6 +58,17 @@ func (m *Memory) Get(id string) (*models.AnalysisJob, bool) {
 		return nil, false
 	}
 	return j, true
+}
+
+// Snapshot returns a copy of the job suitable for API responses and offline processing.
+func (m *Memory) Snapshot(id string) (models.AnalysisJob, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	j, ok := m.jobs[id]
+	if !ok || j == nil {
+		return models.AnalysisJob{}, false
+	}
+	return *j, true
 }
 
 // TryClaim transitions a queued job to running. It returns false if the job is missing or not queued.
