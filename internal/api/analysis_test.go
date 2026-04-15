@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/graphsentinel/graphsentinel/internal/analyzers"
 	"github.com/graphsentinel/graphsentinel/internal/api"
-	"github.com/graphsentinel/graphsentinel/internal/reports"
 	"github.com/graphsentinel/graphsentinel/internal/store"
 	"github.com/graphsentinel/graphsentinel/internal/workers"
 	"github.com/graphsentinel/graphsentinel/pkg/models"
@@ -35,7 +35,7 @@ func TestGetAnalysis_eventuallyCompleted(t *testing.T) {
 	t.Parallel()
 	s := store.NewMemory()
 	pool := workers.NewPool(2, 32, s, func(ctx context.Context, job *models.AnalysisJob) (*models.AnalysisReport, error) {
-		return reports.BuildStubReport(job), nil
+		return analyzers.Analyze(ctx, job)
 	})
 	pool.Start()
 	t.Cleanup(func() {

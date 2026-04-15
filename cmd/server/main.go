@@ -9,21 +9,18 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/graphsentinel/graphsentinel/internal/analyzers"
 	"github.com/graphsentinel/graphsentinel/internal/api"
 	"github.com/graphsentinel/graphsentinel/internal/config"
-	"github.com/graphsentinel/graphsentinel/internal/reports"
 	"github.com/graphsentinel/graphsentinel/internal/store"
 	"github.com/graphsentinel/graphsentinel/internal/workers"
-	"github.com/graphsentinel/graphsentinel/pkg/models"
 )
 
 func main() {
 	cfg := config.Load()
 	jobs := store.NewMemory()
 
-	pool := workers.NewPool(cfg.WorkerCount, 256, jobs, func(ctx context.Context, job *models.AnalysisJob) (*models.AnalysisReport, error) {
-		return reports.BuildStubReport(job), nil
-	})
+	pool := workers.NewPool(cfg.WorkerCount, 256, jobs, analyzers.Analyze)
 	pool.Start()
 
 	srv := &http.Server{
