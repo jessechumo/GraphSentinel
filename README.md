@@ -6,7 +6,7 @@ GraphSentinel is a Go backend service for analyzing source code structure and de
 
 ## Status
 
-HTTP server with `GET /health`, **`POST /analyze`**, and **`GET /analysis/{id}`**. Submissions are queued in `internal/store`, processed by a configurable worker pool (`internal/workers`), and completed with a baseline stub report (`internal/reports`) until the detector commits land.
+HTTP server with `GET /health`, **`POST /analyze`**, and **`GET /analysis/{id}`**. Submissions are queued in `internal/store`, processed by a configurable worker pool (`internal/workers`), and now analyzed with an MVP identifier-renaming detector; dead-code and control-flow detectors are staged for upcoming commits.
 
 ## Quickstart
 
