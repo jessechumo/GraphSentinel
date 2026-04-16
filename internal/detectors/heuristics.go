@@ -15,12 +15,18 @@ type IdentifierRenamingDetector interface {
 	Detect(prepared ingestion.PreparedCode) models.IdentifierRenamingOutput
 }
 
+// DeadCodeDetector defines the contract for dead-code pattern detection.
+type DeadCodeDetector interface {
+	Detect(prepared ingestion.PreparedCode) models.DeadCodeOutput
+}
+
 // Run executes MVP text-structure heuristics that proxy real detector signals.
 func Run(prepared ingestion.PreparedCode) models.DetectorOutputs {
 	identifierDetector := HeuristicIdentifierRenamingDetector{}
+	deadCodeDetector := HeuristicDeadCodeDetector{}
 	return models.DetectorOutputs{
 		IdentifierRenaming: identifierDetector.Detect(prepared),
-		DeadCode:           models.DeadCodeOutput{},
+		DeadCode:           deadCodeDetector.Detect(prepared),
 		ControlFlow:        models.ControlFlowOutput{},
 	}
 }
@@ -68,6 +74,58 @@ func (HeuristicIdentifierRenamingDetector) Detect(p ingestion.PreparedCode) mode
 
 	return models.IdentifierRenamingOutput{
 		Likely: score >= 0.20,
+		Score:  score,
+	}
+}
+
+// HeuristicDeadCodeDetector implements MVP dead-code marker heuristics.
+type HeuristicDeadCodeDetector struct{}
+
+// Detect scans for classic dead/unreachable constructs and estimates a normalized score.
+func (HeuristicDeadCodeDetector) Detect(p ingestion.PreparedCode) models.DeadCodeOutput {
+	lower := p.Lower
+	strongHits := 0
+	weakHits := 0
+
+	strongPatterns := []string{
+		"if(false)",
+		"if (false)",
+		"while(false)",
+		"while (false)",
+		"if(0)",
+		"if (0)",
+		"while(0)",
+		"while (0)",
+		"return;",
+		"throw;",
+	}
+	for _, marker := range strongPatterns {
+		strongHits += strings.Count(lower, marker)
+	}
+
+	weakPatterns := []string{
+		"unreachable",
+		"never executed",
+		"dead code",
+		"dummy branch",
+		"if constexpr(false)",
+		"if constexpr (false)",
+		"if(false){",
+		"if (false){",
+	}
+	for _, marker := range weakPatterns {
+		weakHits += strings.Count(lower, marker)
+	}
+
+	// Look for clearly unused temp-style declarations often injected by obfuscators.
+	for _, marker := range []string{"unused_", "dummy_", "tmp_unused"} {
+		weakHits += strings.Count(lower, marker)
+	}
+
+	rawScore := (float64(strongHits) * 0.45) + (float64(weakHits) * 0.15)
+	score := clamp01(rawScore)
+	return models.DeadCodeOutput{
+		Likely: score >= 0.35,
 		Score:  score,
 	}
 }

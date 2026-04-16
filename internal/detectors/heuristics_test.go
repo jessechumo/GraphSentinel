@@ -40,9 +40,40 @@ int compute_total(int order_count, int discount_rate){
 
 func TestRun_OnlyIdentifierActiveForNow(t *testing.T) {
 	t.Parallel()
-	src := `int main(){int x1=0; int y2=1; return x1+y2;}`
+	src := `int main(){int x1=0; int y2=1; if(false){return 1;} return x1+y2;}`
 	outs := Run(ingestion.Prepare(src))
-	if outs.DeadCode.Score != 0 || outs.ControlFlow.Score != 0 {
-		t.Fatalf("expected neutral non-identifier detectors, got %+v", outs)
+	if !outs.DeadCode.Likely || outs.DeadCode.Score <= 0 {
+		t.Fatalf("expected dead-code signal to be active, got %+v", outs.DeadCode)
+	}
+	if outs.ControlFlow.Score != 0 || outs.ControlFlow.Likely {
+		t.Fatalf("expected neutral control-flow detector, got %+v", outs.ControlFlow)
+	}
+}
+
+func TestDetectDeadCode_HeuristicDetector(t *testing.T) {
+	t.Parallel()
+	d := HeuristicDeadCodeDetector{}
+
+	obfuscated := `
+int main() {
+  int unused_tmp = 0;
+  if(false) { return 1; }
+  while(0) { unused_tmp++; }
+  return 0;
+}`
+	out := d.Detect(ingestion.Prepare(obfuscated))
+	if !out.Likely {
+		t.Fatalf("expected dead-code detection, got %+v", out)
+	}
+
+	clear := `
+int main() {
+  int count = 2;
+  if (count > 0) { return count; }
+  return 0;
+}`
+	out2 := d.Detect(ingestion.Prepare(clear))
+	if out2.Likely {
+		t.Fatalf("expected low dead-code signal, got %+v", out2)
 	}
 }
