@@ -2,6 +2,7 @@ package analyzers
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/graphsentinel/graphsentinel/pkg/models"
@@ -52,8 +53,12 @@ func TestSummarize(t *testing.T) {
 	some := summarize(models.DetectorOutputs{
 		IdentifierRenaming: models.IdentifierRenamingOutput{Likely: true, Score: 0.8},
 		DeadCode:           models.DeadCodeOutput{Likely: true, Score: 0.9},
+		ControlFlow:        models.ControlFlowOutput{Likely: true, Score: 0.7},
 	})
 	if some == none {
 		t.Fatalf("summary did not change: %q", some)
+	}
+	if !strings.Contains(some, "Likely obfuscation via") {
+		t.Fatalf("unexpected summary format: %q", some)
 	}
 }

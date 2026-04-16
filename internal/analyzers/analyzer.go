@@ -40,5 +40,8 @@ func summarize(outs models.DetectorOutputs) string {
 	if len(flags) == 0 {
 		return "No strong semantics-preserving transformation signals detected."
 	}
-	return "Potential transformations detected: " + strings.Join(flags, ", ") + "."
+	if len(flags) == 1 {
+		return "Likely obfuscation via " + flags[0] + "."
+	}
+	return "Likely obfuscation via " + strings.Join(flags, ", ") + "."
 }

@@ -38,15 +38,30 @@ int compute_total(int order_count, int discount_rate){
 	}
 }
 
-func TestRun_OnlyIdentifierActiveForNow(t *testing.T) {
+func TestRun_AllThreeDetectorsCanSignal(t *testing.T) {
 	t.Parallel()
-	src := `int main(){int x1=0; int y2=1; if(false){return 1;} return x1+y2;}`
+	src := `
+int main() {
+  int x1 = 0;
+  if(false){ return 1; }
+  if (x1 > 0) {
+    if (x1 > 1) {
+      if (x1 > 2) {
+        goto end;
+      }
+    }
+  } else if (x1 == 0) {
+    switch (x1) { case 0: break; default: break; }
+  }
+end:
+  return x1;
+}`
 	outs := Run(ingestion.Prepare(src))
 	if !outs.DeadCode.Likely || outs.DeadCode.Score <= 0 {
 		t.Fatalf("expected dead-code signal to be active, got %+v", outs.DeadCode)
 	}
-	if outs.ControlFlow.Score != 0 || outs.ControlFlow.Likely {
-		t.Fatalf("expected neutral control-flow detector, got %+v", outs.ControlFlow)
+	if !outs.ControlFlow.Likely || outs.ControlFlow.Score <= 0 {
+		t.Fatalf("expected control-flow signal to be active, got %+v", outs.ControlFlow)
 	}
 }
 
@@ -75,5 +90,51 @@ int main() {
 	out2 := d.Detect(ingestion.Prepare(clear))
 	if out2.Likely {
 		t.Fatalf("expected low dead-code signal, got %+v", out2)
+	}
+}
+
+func TestDetectControlFlow_HeuristicDetector(t *testing.T) {
+	t.Parallel()
+	d := HeuristicControlFlowDetector{}
+
+	inflated := `
+int main() {
+  int x = 0;
+  if (x == 0) {
+    if (x < 10) {
+      while (x < 3) {
+        if (x == 1) {
+          goto done;
+        } else if (x == 2) {
+          x++;
+        } else if (x == 3) {
+          x += 2;
+        }
+        x++;
+      }
+    }
+  } else if (x < 0) {
+    switch (x) {
+      case -1: break;
+      case -2: break;
+      default: break;
+    }
+  }
+done:
+  return x;
+}`
+	out := d.Detect(ingestion.Prepare(inflated))
+	if !out.Likely {
+		t.Fatalf("expected control-flow drift detection, got %+v", out)
+	}
+
+	straight := `
+int add(int a, int b) {
+  int total = a + b;
+  return total;
+}`
+	out2 := d.Detect(ingestion.Prepare(straight))
+	if out2.Likely {
+		t.Fatalf("expected low control-flow signal, got %+v", out2)
 	}
 }

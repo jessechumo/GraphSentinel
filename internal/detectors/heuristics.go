@@ -20,14 +20,20 @@ type DeadCodeDetector interface {
 	Detect(prepared ingestion.PreparedCode) models.DeadCodeOutput
 }
 
+// ControlFlowDetector defines the contract for control-flow drift detection.
+type ControlFlowDetector interface {
+	Detect(prepared ingestion.PreparedCode) models.ControlFlowOutput
+}
+
 // Run executes MVP text-structure heuristics that proxy real detector signals.
 func Run(prepared ingestion.PreparedCode) models.DetectorOutputs {
 	identifierDetector := HeuristicIdentifierRenamingDetector{}
 	deadCodeDetector := HeuristicDeadCodeDetector{}
+	controlFlowDetector := HeuristicControlFlowDetector{}
 	return models.DetectorOutputs{
 		IdentifierRenaming: identifierDetector.Detect(prepared),
 		DeadCode:           deadCodeDetector.Detect(prepared),
-		ControlFlow:        models.ControlFlowOutput{},
+		ControlFlow:        controlFlowDetector.Detect(prepared),
 	}
 }
 
@@ -130,6 +136,41 @@ func (HeuristicDeadCodeDetector) Detect(p ingestion.PreparedCode) models.DeadCod
 	}
 }
 
+// HeuristicControlFlowDetector implements MVP branch-inflation and nesting heuristics.
+type HeuristicControlFlowDetector struct{}
+
+// Detect estimates control-flow drift by combining branch density, nesting pressure, and repeated branching.
+func (HeuristicControlFlowDetector) Detect(p ingestion.PreparedCode) models.ControlFlowOutput {
+	lower := p.Lower
+	branchCount := 0
+	for _, kw := range []string{
+		"if(", "if (", "else if", "switch", "case ", "goto ", "while(", "while (", "for(", "for (", "catch", "?:",
+	} {
+		branchCount += strings.Count(lower, kw)
+	}
+	if branchCount == 0 {
+		return models.ControlFlowOutput{}
+	}
+
+	lineCount := p.LineCount
+	if lineCount <= 0 {
+		lineCount = 1
+	}
+	branchDensity := clamp01(float64(branchCount) / float64(lineCount))
+
+	maxNesting := maxBraceNesting(p.Raw)
+	nestingPressure := clamp01(float64(maxNesting-2) / 6.0)
+
+	repeated := repeatedBranchingHits(lower)
+	repetitionScore := clamp01(float64(repeated) / 4.0)
+
+	score := clamp01((0.45 * branchDensity) + (0.35 * nestingPressure) + (0.20 * repetitionScore))
+	return models.ControlFlowOutput{
+		Likely: score >= 0.35,
+		Score:  score,
+	}
+}
+
 func extractIdentifiers(src string) []string {
 	raw := identRE.FindAllString(src, -1)
 	out := make([]string, 0, len(raw))
@@ -196,6 +237,47 @@ func shannonEntropy(s string) float64 {
 		h -= p * math.Log2(p)
 	}
 	return h
+}
+
+func maxBraceNesting(src string) int {
+	depth := 0
+	maxDepth := 0
+	for _, r := range src {
+		switch r {
+		case '{':
+			depth++
+			if depth > maxDepth {
+				maxDepth = depth
+			}
+		case '}':
+			if depth > 0 {
+				depth--
+			}
+		}
+	}
+	return maxDepth
+}
+
+func repeatedBranchingHits(lower string) int {
+	hits := 0
+	// Repeated marker chains often come from opaque predicate insertion.
+	for _, marker := range []string{
+		"if (", "if(", "else if", "case ",
+	} {
+		c := strings.Count(lower, marker)
+		if c >= 3 {
+			hits++
+		}
+	}
+	// Bonus signal for obvious dummy branching tokens.
+	for _, marker := range []string{
+		"dummy branch", "opaque predicate",
+	} {
+		if strings.Contains(lower, marker) {
+			hits++
+		}
+	}
+	return hits
 }
 
 func clamp01(v float64) float64 {
