@@ -55,6 +55,13 @@ func TestAnalyze_validationError(t *testing.T) {
 	if res.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d", res.StatusCode)
 	}
+	var er models.ErrorResponse
+	if err := json.NewDecoder(res.Body).Decode(&er); err != nil {
+		t.Fatal(err)
+	}
+	if er.Code != models.ErrCodeValidation {
+		t.Fatalf("error code = %q want %q body=%+v", er.Code, models.ErrCodeValidation, er)
+	}
 }
 
 func TestAnalyze_bodyTooLarge(t *testing.T) {

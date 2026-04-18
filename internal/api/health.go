@@ -1,9 +1,6 @@
 package api
 
-import (
-	"encoding/json"
-	"net/http"
-)
+import "net/http"
 
 type healthResponse struct {
 	Status  string `json:"status"`
@@ -11,9 +8,7 @@ type healthResponse struct {
 }
 
 func health(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(healthResponse{
+	writeJSON(w, http.StatusOK, healthResponse{
 		Status:  "ok",
 		Service: "graphsentinel",
 	})

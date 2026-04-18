@@ -15,6 +15,7 @@ func NewRouter(js store.JobStore, submit func(id string)) http.Handler {
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
+	r.Use(requestLog())
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 

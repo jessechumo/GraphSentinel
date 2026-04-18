@@ -2,12 +2,11 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/graphsentinel/graphsentinel/internal/analyzers"
 	"github.com/graphsentinel/graphsentinel/internal/api"
@@ -18,21 +17,29 @@ import (
 
 func main() {
 	cfg := config.Load()
+
+	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel})
+	slog.SetDefault(slog.New(logHandler))
+
 	jobs := store.NewMemory()
 
-	pool := workers.NewPool(cfg.WorkerCount, 256, jobs, analyzers.Analyze)
+	pool := workers.NewPool(cfg.WorkerCount, cfg.WorkerQueueSize, jobs, analyzers.Analyze)
 	pool.Start()
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           api.NewRouter(jobs, pool.Submit),
-		ReadHeaderTimeout: 5 * time.Second,
+		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+		ReadTimeout:       cfg.ReadTimeout,
+		WriteTimeout:      cfg.WriteTimeout,
+		IdleTimeout:       cfg.IdleTimeout,
 	}
 
 	go func() {
-		log.Printf("graphsentinel listening on %s", cfg.HTTPAddr)
+		slog.Info("graphsentinel listening", slog.String("addr", cfg.HTTPAddr))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("server: %v", err)
+			slog.Error("server exited", slog.Any("err", err))
+			os.Exit(1)
 		}
 	}()
 
@@ -40,13 +47,13 @@ func main() {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	<-sig
 
-	log.Println("shutdown signal received")
+	slog.Info("shutdown signal received")
 
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Printf("graceful shutdown: %v", err)
+		slog.Warn("graceful shutdown", slog.Any("err", err))
 	}
 
 	pool.Close()
