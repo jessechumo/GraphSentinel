@@ -27,54 +27,46 @@ This repository supports work on **evaluating robustness of GNN-based vulnerabil
 
 GraphSentinel follows a layered execution path: thin HTTP handlers, a store abstraction, workers that claim jobs, and an analyzer pipeline that materializes a machine-readable report.
 
+### Submit and Process Flow
+
 ```mermaid
-flowchart TB
+flowchart LR
   client[Client]
-
-  subgraph api[API Layer]
-    router[Chi Router]
-    health["GET /health"]
-    submit["POST /analyze"]
-    fetch["GET /analysis/{id}"]
-  end
-
-  subgraph runtime[Runtime Layer]
-    store[(In-Memory Job Store)]
-    queue[[Worker Queue]]
-    workers[Worker Pool]
-  end
-
-  subgraph analysis[Analysis Layer]
-    ingest[Ingestion Normalize]
-    rename[Identifier Renaming Detector]
-    dead[Dead Code Detector]
-    flow[Control Flow Detector]
-    report[Report Assembly]
-  end
-
-  subgraph outputs[Outputs]
-    result[Analysis JSON\nstatus, signals, metrics, summary]
-    logs[Structured Logs\nhttp_request, api_error]
-  end
+  router[Chi Router]
+  submit["POST /analyze"]
+  store[(In-Memory Job Store)]
+  queue[[Worker Queue]]
+  workers[Worker Pool]
+  ingest[Ingestion Normalize]
+  detectors[Detectors Run]
+  report[Report Assembly]
 
   client --> router
-  router --> health
   router --> submit
-  router --> fetch
-
   submit --> store
   submit --> queue
   queue --> workers
-  workers --> store
   workers --> ingest
-  ingest --> rename
-  ingest --> dead
-  ingest --> flow
-  rename --> report
-  dead --> report
-  flow --> report
+  ingest --> detectors
+  detectors --> report
   report --> store
+```
 
+### Poll and Output Flow
+
+```mermaid
+flowchart LR
+  client[Client]
+  router[Chi Router]
+  health["GET /health"]
+  fetch["GET /analysis/{id}"]
+  store[(In-Memory Job Store)]
+  result[Analysis JSON]
+  logs[Structured Logs]
+
+  client --> router
+  router --> health
+  router --> fetch
   fetch --> store
   store --> result
   router --> logs
