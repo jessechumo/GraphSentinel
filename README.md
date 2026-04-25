@@ -25,42 +25,59 @@ This repository supports work on **evaluating robustness of GNN-based vulnerabil
 
 ## Architecture
 
-GraphSentinel follows a classic layered layout: thin HTTP handlers, a store abstraction, workers that claim jobs, and an analyzer pipeline that runs ingestion plus detectors before materializing a report.
+GraphSentinel follows a layered execution path: thin HTTP handlers, a store abstraction, workers that claim jobs, and an analyzer pipeline that materializes a machine-readable report.
 
 ```mermaid
-flowchart LR
-  subgraph HTTP
-    R[Chi router]
-    H[/health/]
-    A[/analyze/]
-    G["/analysis/{id}"]
+flowchart TB
+  client[Client]
+
+  subgraph api[API Layer]
+    router[Chi Router]
+    health[GET /health]
+    submit[POST /analyze]
+    fetch[GET /analysis/{id}]
   end
 
-  subgraph Core
-    S[(Memory job store)]
-    W[Worker pool]
-    P[Processor: analyzers.Analyze]
+  subgraph runtime[Runtime Layer]
+    store[(In-Memory Job Store)]
+    queue[[Worker Queue]]
+    workers[Worker Pool]
   end
 
-  subgraph Pipeline
-    I[Ingestion: Prepare]
-    D[Detectors: Run]
-    M[Models: signals and metrics]
+  subgraph analysis[Analysis Layer]
+    ingest[Ingestion Normalize]
+    rename[Identifier Renaming Detector]
+    dead[Dead Code Detector]
+    flow[Control Flow Detector]
+    report[Report Assembly]
   end
 
-  Client([Client]) --> R
-  R --> H
-  R --> A
-  R --> G
-  A --> S
-  G --> S
-  A -. enqueue job id .-> W
-  W --> S
-  W --> P
-  P --> I
-  I --> D
-  D --> M
-  M --> S
+  subgraph outputs[Outputs]
+    result[Analysis JSON\nstatus, signals, metrics, summary]
+    logs[Structured Logs\nhttp_request, api_error]
+  end
+
+  client --> router
+  router --> health
+  router --> submit
+  router --> fetch
+
+  submit --> store
+  submit --> queue
+  queue --> workers
+  workers --> store
+  workers --> ingest
+  ingest --> rename
+  ingest --> dead
+  ingest --> flow
+  rename --> report
+  dead --> report
+  flow --> report
+  report --> store
+
+  fetch --> store
+  store --> result
+  router --> logs
 ```
 
 **Request path (submit):** `POST /analyze` validates the payload, persists a `queued` job, returns `202 Accepted` with an `analysis_id`, and schedules background processing.
