@@ -33,9 +33,9 @@ flowchart TB
 
   subgraph api[API Layer]
     router[Chi Router]
-    health[GET /health]
-    submit[POST /analyze]
-    fetch[GET /analysis/{id}]
+    health["GET /health"]
+    submit["POST /analyze"]
+    fetch["GET /analysis/{id}"]
   end
 
   subgraph runtime[Runtime Layer]
