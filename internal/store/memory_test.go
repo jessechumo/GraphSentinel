@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/graphsentinel/graphsentinel/pkg/models"
@@ -95,5 +96,17 @@ func TestMemory_failWrongState(t *testing.T) {
 	}
 	if err := s.Fail(j.ID, "x"); err != ErrJobNotRunning {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestMemory_Enqueue_randomFailure(t *testing.T) {
+	orig := randomReader
+	randomReader = func(_ []byte) (int, error) { return 0, errors.New("entropy unavailable") }
+	t.Cleanup(func() { randomReader = orig })
+
+	s := NewMemory()
+	_, err := s.Enqueue(models.AnalyzeRequest{Language: "go", Code: "x"})
+	if err == nil {
+		t.Fatal("expected enqueue error")
 	}
 }

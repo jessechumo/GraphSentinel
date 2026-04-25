@@ -2,6 +2,7 @@ package analyzers
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/graphsentinel/graphsentinel/internal/detectors"
@@ -9,8 +10,13 @@ import (
 	"github.com/graphsentinel/graphsentinel/pkg/models"
 )
 
+var errNilJob = errors.New("analysis job is required")
+
 // Analyze runs normalized ingestion + detector heuristics and returns a report.
 func Analyze(_ context.Context, job *models.AnalysisJob) (*models.AnalysisReport, error) {
+	if job == nil {
+		return nil, errNilJob
+	}
 	prepared := ingestion.Prepare(job.Request.Code)
 	outs := detectors.Run(prepared)
 	signals := outs.Signals()

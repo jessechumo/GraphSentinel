@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -31,7 +32,10 @@ func NewMemory() *Memory {
 // Enqueue assigns an ID, records the job as queued, and returns the stored job pointer.
 // The submission response must not read mutable fields from this pointer after scheduling workers.
 func (m *Memory) Enqueue(req models.AnalyzeRequest) (*models.AnalysisJob, error) {
-	id := newAnalysisID()
+	id, err := newAnalysisID()
+	if err != nil {
+		return nil, err
+	}
 	now := time.Now().UTC()
 	job := &models.AnalysisJob{
 		ID:        id,
@@ -123,11 +127,12 @@ func (m *Memory) Fail(id string, msg string) error {
 	return nil
 }
 
-func newAnalysisID() string {
+var randomReader = rand.Read
+
+func newAnalysisID() (string, error) {
 	var b [16]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		// crypto/rand only fails if the kernel refuses entropy; treat as fatal.
-		panic("graphsentinel: cannot generate analysis id: " + err.Error())
+	if _, err := randomReader(b[:]); err != nil {
+		return "", fmt.Errorf("generate analysis id: %w", err)
 	}
-	return hex.EncodeToString(b[:])
+	return hex.EncodeToString(b[:]), nil
 }

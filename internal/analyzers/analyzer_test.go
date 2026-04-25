@@ -42,6 +42,17 @@ done:
 	}
 }
 
+func TestAnalyze_nilJob(t *testing.T) {
+	t.Parallel()
+	rep, err := Analyze(context.Background(), nil)
+	if err == nil {
+		t.Fatal("expected error for nil job")
+	}
+	if rep != nil {
+		t.Fatalf("report = %+v, want nil", rep)
+	}
+}
+
 func TestSummarize(t *testing.T) {
 	t.Parallel()
 
